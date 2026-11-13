@@ -1,0 +1,9 @@
+C:\WorkWork\DSP MOD\DSP-RecipeSlots\obj\Release\DSP-RecipeSlots.csproj.AssemblyReference.cache
+C:\WorkWork\DSP MOD\DSP-RecipeSlots\obj\Release\DSP-RecipeSlots.GeneratedMSBuildEditorConfig.editorconfig
+C:\WorkWork\DSP MOD\DSP-RecipeSlots\obj\Release\DSP-RecipeSlots.AssemblyInfoInputs.cache
+C:\WorkWork\DSP MOD\DSP-RecipeSlots\obj\Release\DSP-RecipeSlots.AssemblyInfo.cs
+C:\WorkWork\DSP MOD\DSP-RecipeSlots\obj\Release\DSP-RecipeSlots.csproj.CoreCompileInputs.cache
+C:\WorkWork\DSP MOD\DSP-RecipeSlots\bin\Release\DSP-RecipeSlots.dll
+C:\WorkWork\DSP MOD\DSP-RecipeSlots\obj\Release\DSP-RecipeSlots.dll
+C:\WorkWork\DSP MOD\DSP-RecipeSlots\bin\ReleasePkg\DSP-RecipeSlots.dll
+C:\WorkWork\DSP MOD\DSP-RecipeSlots\bin\Dev\DSP-RecipeSlots.dll

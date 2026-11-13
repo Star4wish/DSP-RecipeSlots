@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "dgSpecHash": "BR77zXUF04o=",
+  "success": true,
+  "projectFilePath": "C:\\WorkWork\\DSP MOD\\DSP-RecipeSlots\\DSP-RecipeSlots.csproj",
+  "expectedPackageFiles": [
+    "C:\\WorkWork\\DSP MOD\\DSP-RecipeSlots\\.dotnethome\\.nuget\\packages\\microsoft.netframework.referenceassemblies\\1.0.2\\microsoft.netframework.referenceassemblies.1.0.2.nupkg.sha512",
+    "C:\\WorkWork\\DSP MOD\\DSP-RecipeSlots\\.dotnethome\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net472\\1.0.2\\microsoft.netframework.referenceassemblies.net472.1.0.2.nupkg.sha512"
+  ],
+  "logs": [
+    {
+      "code": "NU1900",
+      "level": "Warning",
+      "message": "获取包漏洞数据时出错: Access to the path 'C:\\Users\\徐春明\\AppData\\Local\\NuGet\\v3-cache\\670c1461c29885f9aa22c281d8b7da90845b38e4$ps_api.nuget.org_v3_index.json\\vuln_index.dat-new' is denied.",
+      "projectPath": "C:\\WorkWork\\DSP MOD\\DSP-RecipeSlots\\DSP-RecipeSlots.csproj",
+      "warningLevel": 1,
+      "filePath": "C:\\WorkWork\\DSP MOD\\DSP-RecipeSlots\\DSP-RecipeSlots.csproj",
+      "targetGraphs": []
+    }
+  ]
+}
