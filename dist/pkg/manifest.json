@@ -1,9 +1,7 @@
-﻿{
+{
   "name": "DSP_RecipeSlots",
   "version_number": "1.2.0",
-  "website_url": "https://github.com/your-name/DSP-RecipeSlots",
-  "description": "突破原版配方 6 种原料/产物上限：支持 >6 输入、>6 产物、研究站 >6 矩阵消耗，并适配装配台/科技树/研究站 UI。单人可用；联机需所有客户端安装同一版本。",
-  "dependencies": [
-    "xiaoye97-BepInEx-5.4.17"
-  ]
+  "website_url": "https://github.com/Star4wish/DSP-RecipeSlots",
+  "description": "Break the 6-item recipe cap for inputs/products. 突破配方6原料/产物上限。",
+  "dependencies": ["xiaoye97-BepInEx-5.4.17"]
 }

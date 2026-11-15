@@ -1,15 +1,68 @@
 # DSP-RecipeSlots
 
-> 戴森球计划（Dyson Sphere Program）配方槽位扩展补丁：**突破原版「配方最多 6 种原料 / 产物」的限制**，并同步扩展装配台、科技树、研究站 UI。
+Break the vanilla "max 6 ingredients / products per recipe" limit in **Dyson Sphere Program**, with matching UI support for assemblers, the tech tree and research labs.
 
-- 游戏版本：`0.10.35.29151`（EA）
-- 运行时：BepInEx 5.4.17 + HarmonyX
-- 插件版本：`1.2.0`
-- 状态：单人链路全部实机验证；联机为静态分析 + 加载级共存结论（双端实测待补）
+- Game version: `0.10.35.29151` (EA)
+- Runtime: BepInEx 5.4.17 + HarmonyX
+- Plugin version: `1.2.0`
+- Status: single-player chain fully verified in game; multiplayer checked by static analysis + load-level coexistence (two-client test still pending)
 
 ---
 
-## 1. 功能
+## English
+
+### Features
+
+| Feature | Description |
+|---|---|
+| **>6 ingredients** | Recipes may have more than 6 `Items`; assemblers / smelters / chemical plants accept and consume them (since 1.2.0 with no rotation duty-cycle loss) |
+| **>6 products** | Recipes may have more than 2 `Results`; the assembler window shows dynamic product slots, click to take |
+| **Labs with >6 matrices** | Matrix labs can consume a 7th+ matrix; `matrixIds/matrixPoints` are extended from config, and need broadcast / bottleneck gate / accept / chained-lab transfer are all looped |
+| **Labs with >6 ingredients** | A matrix lab running an `ERecipeType.Research` recipe also supports 7+ ingredients |
+| **UI support** | Multi-row ingredient/product layout with auto window height, tech-tree cost icons, tech tooltip cost row, 3×3 matrix grid in the lab window, item/recipe tooltip icon rows |
+
+### How it works
+
+Vanilla hard-codes 6 in the input chain (need broadcast → inserter picking → machine accept). This plugin:
+
+1. fills the `needs` array to the recipe's ingredient count (since 1.2.0; 1.0–1.1 rotated a 6-slot window);
+2. rewrites all 6-item hard-coded matching in the 4 pick sources (belt / storage / station / machine-to-machine) into length-based loops;
+3. loops the assembler branch of `PlanetFactory.InsertInto(int/uint)` over `requires.Length`;
+4. extends lab matrix arrays and loops broadcast / bottleneck / accept / chained transfer;
+5. clones vanilla controls to extend the UI.
+
+### Install
+
+1. Install BepInEx 5.4.17 (r2modman / Thunderstore resolves it automatically);
+2. Put `DSP-RecipeSlots.dll` into `<game>/BepInEx/plugins/DSP-RecipeSlots/`;
+3. Start the game. `DSP-RecipeSlots 1.2.0 loaded` in the log means success.
+
+### Config (`BepInEx/config/star4wish.dsp.recipeslots.cfg`)
+
+| Key | Default | Description |
+|---|---|---|
+| `Core.EnablePatches` | `true` | Master switch for gameplay patches (`false` = attribution / compatibility A/B) |
+| `Core.EnableNeedsLoop` | `true` | 1.2.0 full-loop implementation; `false` falls back to the 1.1 6-slot rotation |
+| `Lab.ExtraMatrixIds` | empty | Extra matrix item IDs, comma separated (e.g. `6010`). **No contiguity required** (the plugin remaps by actual index). The content mod must register the items first |
+| `Debug.Verbose` | `false` | Patch-hit diagnostics |
+
+> The release build contains **no** test recipes, test tech or file debug channel; they only exist in dev builds (`build.ps1` without `-Release`).
+
+### Known limitations
+
+- Recipe / item / tech IDs must be **< 12000** (`IconSet` index arrays are fixed at 12000).
+- Serialized assembler `recipeId` is a `short`: IDs must be ≤ 32767.
+- Removing the plugin falls back to vanilla safely: saves load, but machines lose their recipe (LDBTool warning + "missing recipe" idle, products lost), and autosave keeps that state.
+- **Nebula multiplayer**: `needs` is not synchronized (recomputed locally each tick); `Served/IncServed` use variable-length arrays and products/matrices sync by index. Static analysis + load-level coexistence verified; **all clients must install the same plugin version**. Two-client test still pending.
+- **Orbital Ring (POR)**: POR 1.0.22 cannot start a new game on 0.10.35 in our environment (its own `GameLoader.FixedUpdate` NRE, reproducible with our patches disabled), so POR coexistence could not be tested end to end. The plugin does not touch `AssemblerComponent.InternalUpdate` / `FactorySystem.GameTick` / `GameLogic._assembler_parallel`.
+- Lab 9-matrix UI: fixed 3×3 grid (9 cells, 7 active + 2 reserved); configure 9 matrix item IDs in `Lab.ExtraMatrixIds` to use all cells.
+- Not covered: ejector/silo bullet matching; station input-slot emptiness check (sums `needs[0..5]`). Both are unrelated to recipe ingredients or have negligible impact.
+
+---
+
+## 中文
+
+### 功能
 
 | 功能 | 说明 |
 |---|---|
@@ -19,7 +72,7 @@
 | **研究站 >6 输入普通配方** | 矩阵研究站跑 `ERecipeType.Research` 配方时支持 7+ 原料 |
 | **UI 适配** | 装配台产物/原料多行、窗口自适应高度、科技树成本图标、科技 tooltip 成本行、研究站 3×3 九宫格矩阵槽、物品/配方 tooltip 图标行 |
 
-### 工作原理（简述）
+### 工作原理
 
 原版在「输入需求广播 → 分拣器按需抓料 → 机器受理」链上把 6 写死。本插件：
 
@@ -29,13 +82,13 @@
 4. `LabComponent` 系列矩阵数组扩展 + 广播/瓶颈/受理/叠站转移循环化；
 5. UI 补丁克隆原生控件动态扩展。
 
-## 2. 安装
+### 安装
 
 1. 安装 BepInEx 5.4.17（r2modman / Thunderstore 会自动处理依赖）；
 2. 将 `DSP-RecipeSlots.dll` 放到 `<游戏目录>/BepInEx/plugins/DSP-RecipeSlots/`；
 3. 启动游戏。日志出现 `DSP-RecipeSlots 1.2.0 loaded` 即成功。
 
-## 3. 配置（`BepInEx/config/star4wish.dsp.recipeslots.cfg`）
+### 配置（`BepInEx/config/star4wish.dsp.recipeslots.cfg`）
 
 | 配置键 | 默认 | 说明 |
 |---|---|---|
@@ -46,7 +99,7 @@
 
 > 发布版**不包含**任何测试配方、测试科技、文件调试通道；这些只在开发构建（`build.ps1` 不带 `-Release`）中存在。
 
-## 4. 已知限制 / 兼容性
+### 已知限制
 
 - **配方/物品/科技 ID 必须 < 12000**：`IconSet` 索引数组定长 12000；超出会在开新档时崩。
 - **装配器存档 `recipeId` 为 `short`**：ID 需 ≤ 32767。
@@ -56,19 +109,21 @@
 - **研究站 9 矩阵**：UI 固定 3×3（9 格，7 个有效 + 2 个预留空格）；要 9 格全用需在 `Lab.ExtraMatrixIds` 配齐 9 个矩阵物品。
 - **未覆盖的 6 项硬编码**：弹射器/发射井子弹匹配、物流站输入槽判空（用 `needs[0..5]` 求和）。均与配方原料无关或影响极小。
 
-## 5. 构建（开发者）
+---
+
+## Build (developers)
 
 ```powershell
-# 开发构建（含测试配方/调试通道，用于实机验证）
+# Dev build (test recipes + debug channel, for in-game verification)
 powershell -ExecutionPolicy Bypass -File build.ps1
 
-# 发布构建（剔除测试内容与调试通道）+ 打包 r2modman/Thunderstore zip
+# Release build (test content and debug channel stripped) + r2modman/Thunderstore zip
 powershell -ExecutionPolicy Bypass -File build.ps1 -Release -Package
 ```
 
-产物：`bin/ReleasePkg/DSP-RecipeSlots.dll`、`dist/DSP_RecipeSlots-<version>.zip`（含 `manifest.json` / `icon.png` / `README.md` / `CHANGELOG.md` / `BepInEx/plugins/DSP-RecipeSlots/`）+ `.sha256`。
+Outputs: `bin/ReleasePkg/DSP-RecipeSlots.dll`, `dist/DSP_RecipeSlots-<version>.zip` (contains `manifest.json` / `icon.png` / `README.md` / `CHANGELOG.md` / `BepInEx/plugins/DSP-RecipeSlots/`) and a `.sha256` file.
 
-## 6. 致谢
+## Credits
 
-- BepInEx / HarmonyX（运行时）
-- 无其他硬依赖
+- BepInEx / HarmonyX
+- No other hard dependencies

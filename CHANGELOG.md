@@ -1,104 +1,64 @@
-﻿## 1.2.0
-
-
-### 发布构建与打包（1.2.0）
-- 新增 `SHIP` 编译开关：`build.ps1 -Release` 产出**发布版 DLL**，整体剔除测试内容（测试配方 7000–7009、测试科技 7100、测试物品 6010/6101）、文件调试通道（`_dev` 读写与全部调试命令）、测试供电补丁与 `Test.*` 配置项。
-- 发布版实测：日志无 `[test-recipe]` / `[dev]`；自动生成的配置只剩 `[Core]`/`[Lab]`/`[Debug]`；`PatchAll ok, patched=27`；主菜单与银河设置界面无插件错误。
-- 新增 `build.ps1 -Release -Package`：一键产出 r2modman / Thunderstore 兼容包 `dist/DSP_RecipeSlots-<version>.zip`（manifest + icon + README + CHANGELOG + BepInEx/plugins/DSP-RecipeSlots/DSP-RecipeSlots.dll）与 `.sha256`。
-- 开发构建保留测试内容与调试通道（`build.ps1` 不带 `-Release`，输出 `bin/Dev`）。
-
-### M2：输入需求「全循环化」，去掉 6 格轮转的占空比损失
-- `AssemblerComponent.SetRecipe` 后置把 `needs` 扩容到配方原料数（≥6），`UpdateNeeds` 按索引全量填充，
-  **不再按 tick 轮转广告 6 种**；研究站普通配方同样处理。
-- 取料匹配全部改为按 `needs.Length` 循环（原版为 6 项硬编码）：
-  - 传送带：`CargoPath.TryPickItem` / `TryPickItemAtRear` / `CanPickItemFromRear`
-  - 箱子：`StorageComponent.TakeTailItems`
-  - 物流站：`StationComponent.TakeItem`
-  - 机器→机器：`PlanetFactory.PickFrom(int/uint)` 的装配器/研究站分支
-- 仅在 `needs.Length > 6` 时接管，原版配方（≤6）路径完全不变。
-- 新增 `Core.EnableNeedsLoop`（默认 true）可回退旧轮转方案；新增调试命令 `autofeed`。
-- 实测：12 原料配方全部原料同时广告、箱子/传送带/机器直送四种来源均可取第 7–12 种原料，
-  端到端连续生产 10 轮（每轮 12 产物）；8 输入与原版配方回归正常。
-## 1.1.4
-
-### 产物换行改为「满 6 个」
-- 产物每行容量 4 → **6**；多行 UI 的触发条件保持不变（**原料 > 6 或 产物 > 4** 才切换成「原料在上 / 速度居中 / 产物在下」）。
-- 效果：5–6 个产物仍单行；7–12 个产物按 6/行换行（8 → 6+2，12 → 6+6）。
-
-### 新增 12 原料 / 12 产物压力测试配方（Test.*）
-- `7007 test-12in-1out`：12 原料 → 铁块
-- `7008 test-1in-12out`：铁矿 → 12 产物（4 爪 + 3 带 + 齿轮/磁铁/钢材/石材/框架材料）
-- `7009 test-12in-12out`：12 原料 → 12 产物（同时压测两侧上限）
-- 新游戏自动解锁范围由 7000–7006 扩展到 7000–7009。
-
-### 实测
-- 7009：`served/produced` 长度均为 12，UI 原料 6+6、产物 6+6，数量在圆圈右下角；
-- 7007：原料 6+6、产物 1；7008：原料 1、产物 6+6；
-- 7005（7/8）：原料 6+1、产物 6+2；
-- 原版配方（1/1）单行布局不变。全程无异常日志。
-## 1.1.3
-
-### 生产窗口：顺序与数字位置修正
-- **原料/产物顺序**：上方改为「原料」、下方为「产物」（箭头朝下表示 原料 → 产物 的流向），此前两者顺序放反。
-- **数量文本**：原料与产物统一显示在**圆圈右下角内侧**；此前产物数字被下一行圆圈背景盖住、原料数字位置不对。
-- 原料格数量始终显示（0 也显示）。
-- 修复坐标换算：槽位是 `produce` 容器的子节点，容器中心相对窗口偏移 -100，之前按窗口坐标摆放导致整体下移压住「物品清单」。
-- 窗口高度按「原料行数 + 产物行数 + 速度行 + 物品清单」计算，「物品清单」区自动下移到内容下方。
-
-### 研究站：九宫格布局修正（承 1.1.2）
-- 3×3 网格改为在**窗口左侧可用区域**内自动缩放并水平/垂直居中（右侧「选择模式/速度/状态圈/提示」不再重叠）。
-- 定位算法统一在窗口局部坐标（UI 单位）内计算后换算世界坐标，避免 Canvas 世界缩放（约 1/100）导致网格被推出画布。
 # Changelog
 
-## 1.1.1
+Bilingual: each version lists the English summary first, then the Chinese details.
+双语说明：每个版本先列英文摘要，再列中文详情。
 
-### 生产窗口多行布局细节修正
-- **原料格改为圆圈样式**：多行模式下原料不再用原版 serving-box 平铺图标，而是与产物一致的圆圈槽（自建克隆），数量显示在**圆圈右下角**（原来压在圆圈中间 / 贴左边缘）。
-- **速度显示**：移到「产物行」和「原料行」之间并水平居中；箭头由 ◀◀◀ 改为**朝下 ▼**（在多行模式下），单行模式恢复原版朝左。
-- **单行模式回归修复**：从多行配方切回普通配方时，速度区 y 偏移残留导致跑到中间的问题已修复，窗口/原料框/箭头均恢复原版布局。
-- 原料格图标不再因 Button 禁用态被染灰（transition 设为 None），并显示当前已供数量。
+## 1.2.0
 
-### 研究站：固定 3×3 九宫格九格
-- 矩阵槽固定按 **3×3 = 9 格**排布（不再随矩阵数只排 7 格），为将来 **9 矩阵科技 / 9 原料矩阵**预留 2 个空位（显示为锁定空格）。
-- 关键实现：原版 `_OnUpdate` 以 `itemButtons.Length` 为循环边界索引 `matrixProtos/matrixServed`（长度 = 矩阵数），
-  因此显示 9 格时必须让原版函数体看到裁剪后的数组；已用 `Prefix 裁剪 + Finalizer 恢复 + Postfix 自行绘制多余格` 的方式规避越界。
-- 实测：7 矩阵研究正常推进（hash 上涨），第 7 格有进度与数量，第 8/9 格为空锁定格。
+### English
+- **M2 – full looping of the input needs chain**: the `needs` array is now filled to the recipe's ingredient count (no more 6-slot rotation), so there is no advertising duty-cycle loss. All hard-coded 6-item matches were rewritten to length-based loops: `CargoPath.TryPickItem` / `TryPickItemAtRear` / `CanPickItemFromRear`, `StorageComponent.TakeTailItems`, `StationComponent.TakeItem`, and the assembler/lab branches of `PlanetFactory.PickFrom(int/uint)`. Lab normal recipes got the same treatment. `Core.EnableNeedsLoop=false` falls back to the 1.1 rotation.
+- Verified: a 12-ingredient recipe receives all 12 ingredients from belts / storage / machines and runs 10 consecutive production cycles (12 products each); 8-ingredient and vanilla recipes still work.
+- **Release build and packaging**: new `SHIP` compile symbol. `build.ps1 -Release` produces a release DLL with test content, debug channel, test power patch and `Test.*` configs stripped. `build.ps1 -Release -Package` produces a r2modman / Thunderstore compatible `dist/DSP_RecipeSlots-<version>.zip` plus `.sha256`. Dev builds (`bin/Dev`) keep everything for in-game verification.
+
+### 中文
+- **M2：输入需求「全循环化」，去掉 6 格轮转的占空比损失**：`needs` 按配方原料数全长填充，取料匹配全部按长度循环（传送带 3 处、箱子、物流站、机器直送 2 个重载），研究站普通配方同步处理；`Core.EnableNeedsLoop=false` 可回退 1.1 轮转。
+- 实测：12 原料配方从传送带/箱子/机器四种来源全部取到第 7–12 种原料，连续生产 10 轮（每轮 12 产物）；8 输入与原版配方回归正常。
+- **发布构建与打包**：新增 `SHIP` 编译开关；`build.ps1 -Release` 产出剔除测试内容/调试通道/测试供电/`Test.*` 的发布版 DLL；`build.ps1 -Release -Package` 一键产出 r2modman / Thunderstore 兼容 zip 与 `.sha256`。开发构建（`bin/Dev`）保留全部调试能力。
+
+## 1.1.4
+
+### English
+- Product row capacity changed from 4 to 6; the multi-row layout still triggers when ingredients > 6 or products > 4.
+- Added 12-ingredient / 12-product stress-test recipes (7007–7009) and verified them in game.
+
+### 中文
+- 产物每行容量 4 → 6；多行 UI 触发条件保持「原料 > 6 或 产物 > 4」。
+- 新增 12 原料 / 12 产物压力测试配方（7007–7009）并实机验证。
+
+## 1.1.3
+
+### English
+- Production window: ingredients now on top (6/row), products below (4/row at the time), speed display centered in between with downward arrows; counts moved to the bottom-right inside each circle; fixed slot coordinate offset (`produce` container offset -100) that overlapped the inventory panel.
+- Lab window: 3×3 matrix grid is now auto-scaled and centered inside the left area of the (unchanged) vanilla window, so the right-side hints no longer overlap.
+
+### 中文
+- 生产窗口：原料在上（6/行）、产物在下、速度居中且箭头朝下；数量统一到圆圈右下角内侧；修正槽位坐标偏移（`produce` 容器 -100）导致的清单重叠。
+- 研究站：3×3 网格在窗口左侧可用区域内自动缩放居中，右侧提示不再重叠。
+
+## 1.1.1 / 1.1.2
+
+### English
+- 1.1.1: first version of the production-window multi-row layout (ingredients 6/row, products 4/row, auto window height).
+- 1.1.2: lab matrix slots fixed to a 3×3 grid (9 cells, 2 reserved for future 9-matrix tech); fixed crashes when a lab produced an extra matrix, non-contiguous extra matrix ID mapping, and tech `Level/MaxLevel` convention.
+
+### 中文
+- 1.1.1：生产窗口多行布局初版（原料 6/行、产物 4/行、窗口自动加高）。
+- 1.1.2：研究站矩阵槽固定 3×3 九格（预留 2 格）；修复研究站产出额外矩阵越界崩溃、非连续矩阵 ID 映射、科技 `Level/MaxLevel` 约定等问题。
 
 ## 1.1.0
 
-### 新增：生产建筑窗口多行布局（>6 原料 / >4 产物）
-- 制造台 / 熔炉 / 化工厂等「选好配方后的生产窗口」：
-  - **原料 >6** 时，输入原料网格（serving-box / UIStorageGrid）自动改为 **6 个/行**换行；
-  - **产物 >4** 时，产物槽自动改为 **4 个/行**换行；
-  - 窗口按行数自动加高，「物品清单」区域自动下移，窗口位置做贴边修正避免出屏；
-  - 未超原版容量（原料 ≤6、产物 ≤4）时保持原版单行布局不变。
-- 实测：7004（8 输入/7 产物）、7005（7 输入/8 产物）多行正常；原版齿轮（1 输入/1 产物）窗口与原版一致。
+### English
+- Added multi-row layout for production windows and a GenesisBook-inspired 3×3 lab matrix grid.
+- Added dev test content: pink native matrix item 6010, leaf item 6101, recipes 7003–7006 and test tech 7100.
 
-### 新增：研究站研发界面九宫格（参考 GenesisBook）
-- 矩阵研究站窗口在矩阵数 >6 时，矩阵槽按 **3×3 九宫格**排列（间距 105，`(i%3-1)*105, (i/3)*-105+105`）；
-- 隐藏原版六边形连线，窗口加高到 460 以容纳三行；
-- 实测 7 矩阵：3+3+1 排列正常。
-
-### 测试内容（Test.*，默认关闭）
-- 新增物品：原生矩阵 `6010`（粉色图标）、树叶 `6101`（绿色图标）；
-- 新增配方：7003 研究站 8 输入→原生矩阵、7004 制造台 8 输入→4 爪+3 带、7005 化工厂 7 输入→8 产物、7006 熔炉 7 输入→7 产物；
-- 新增科技 7100「测试科技-七糖」：7 种矩阵各 10 个 / 1000 哈希；
-- 新游戏自动解锁 7000–7006。
-
-### 修复（1.0.0 以来）
-- 研究站普通配方产出额外矩阵（如 6010）时 `_lab_produce_parallel` 越界的崩溃（`InternalUpdateAssemble` 返回值被当 `matrixShaderStates[]` 下标）。
-- 额外矩阵 ID 不连续时的 `matrixPoints` 映射错位（改为任意额外 ID + `RemapMatrixPoints` 补丁）。
-- 科技 `Level/MaxLevel` 约定错误（普通科技应为 0/0，否则要研究两级）。
-- 研究模式研究站未被测试供电覆盖、`setresearch` 未使用科技队列 API 等问题。
-
-### 调试
-- 新增命令：`itemat / itemscan / techinfo / techstate / setresearch / setlabresearch / unlockrecipes / techpos / technode / uislots`。
+### 中文
+- 新增生产窗口多行布局、参考创世之书的研究站 3×3 九宫格。
+- 新增开发测试内容：粉色原生矩阵 6010、树叶 6101、配方 7003–7006、测试科技 7100。
 
 ## 1.0.0
 
-首个可用版本（单人核心链路实机验证）：>6 输入 / >6 产物 / 研究站 >6 矩阵 / 科技 >6 消耗 UI / 原版回退 / Nebula 加载级共存。详见 1.0.0 版 README。此前版本的详细内容见 git/文档目录。
+### English
+- First usable release: >6 ingredients, >6 products, labs with >6 matrices, tech-tree/Tooltip support for >6 costs, vanilla rollback verified, Nebula load-level coexistence verified.
 
-
-
-
-
+### 中文
+- 首个可用版本：>6 输入、>6 产物、研究站 >6 矩阵、科技树/tooltip >6 消耗、原版回退与 Nebula 加载级共存均已验证。
