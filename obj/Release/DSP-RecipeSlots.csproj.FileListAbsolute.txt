@@ -7,3 +7,11 @@ C:\WorkWork\DSP MOD\DSP-RecipeSlots\bin\Release\DSP-RecipeSlots.dll
 C:\WorkWork\DSP MOD\DSP-RecipeSlots\obj\Release\DSP-RecipeSlots.dll
 C:\WorkWork\DSP MOD\DSP-RecipeSlots\bin\ReleasePkg\DSP-RecipeSlots.dll
 C:\WorkWork\DSP MOD\DSP-RecipeSlots\bin\Dev\DSP-RecipeSlots.dll
+C:\XCM\DSP MOD\DSP-RecipeSlots\bin\Dev\DSP-RecipeSlots.dll
+C:\XCM\DSP MOD\DSP-RecipeSlots\obj\Release\DSP-RecipeSlots.csproj.AssemblyReference.cache
+C:\XCM\DSP MOD\DSP-RecipeSlots\obj\Release\DSP-RecipeSlots.GeneratedMSBuildEditorConfig.editorconfig
+C:\XCM\DSP MOD\DSP-RecipeSlots\obj\Release\DSP-RecipeSlots.AssemblyInfoInputs.cache
+C:\XCM\DSP MOD\DSP-RecipeSlots\obj\Release\DSP-RecipeSlots.AssemblyInfo.cs
+C:\XCM\DSP MOD\DSP-RecipeSlots\obj\Release\DSP-RecipeSlots.csproj.CoreCompileInputs.cache
+C:\XCM\DSP MOD\DSP-RecipeSlots\obj\Release\DSP-RecipeSlots.dll
+C:\XCM\DSP MOD\DSP-RecipeSlots\bin\ReleasePkg\DSP-RecipeSlots.dll

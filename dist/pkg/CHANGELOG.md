@@ -3,6 +3,22 @@
 Bilingual: each version lists the English summary first, then the Chinese details.
 双语说明：每个版本先列英文摘要，再列中文详情。
 
+## 1.2.1
+
+### English
+- **Multi-row layout reflowed**: ingredients and products now wrap only after 7 per row (was 6 / 4). Recipe slots shrink from 64 px to 56 px with a 58 px row pitch, and the gaps between the ingredient rows, the speed area, the product rows and the inventory are tightened, so a multi-row window is much shorter: 8-in/7-out 681 → 570 px, 12-in/12-out 681 → 628 px (vanilla single-row window stays 420 px).
+- **Window height follows the player inventory again**: height is computed as content bottom + inventory title + the actual `rowCount * 50`, so every inventory row stays inside the window (the old code assumed a fixed 204 px grid and clipped rows beyond 4).
+- A 7-ingredient / ≤4-product recipe stays in the vanilla single-row layout — 7 ingredients no longer wrap.
+- **Third-party UI coexistence**: foreign `(Clone)` child slots that ProjectOrbitalRing injects into the vanilla product-group template are stripped when cloning our own slots; AssemblerUI's per-item speed labels are hidden in multi-row mode (they are positioned for the vanilla 2-slot layout and floated outside the window) and restored in single-row mode.
+- Dev-channel additions (dev builds only): `uiscreen`, `uipatches`, `uikids` diagnostics.
+
+### 中文
+- **多行布局重排**：原料/产物改为满 7 个才换行（原 6 / 4）；配方槽 64 → 56 px、行距 58 px，原料行/速度区/产物行/物品栏之间间距收紧，多行窗口明显变矮：8 原料 7 产物 681 → 570 px，12 原料 12 产物 681 → 628 px（原版单行窗口仍为 420 px）。
+- **窗口高度重新跟随物品栏行数**：按「内容底 + 物品清单标题 + 实际 rowCount×50」计算，物品栏超过 4 行也不会被窗口底边裁掉（旧实现写死 204 px 网格高度）。
+- 7 原料 / ≤4 产物的配方继续走原版单行布局，7 个原料不再换行。
+- **第三方 UI 共存**：克隆自建槽位时剔除 ProjectOrbitalRing 注入到产物槽模板里的 `(Clone)` 子物体；多行模式隐藏 AssemblerUI 的逐物品速度标签（按原版 2 槽位定位，会飘到窗口外），回到单行时恢复。
+- 开发通道（仅 dev 构建）新增 `uiscreen`、`uipatches`、`uikids` 排查命令。
+
 ## 1.2.0
 
 ### English

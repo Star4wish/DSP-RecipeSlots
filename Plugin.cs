@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
@@ -26,7 +26,7 @@ namespace DSPRecipeSlots
     {
         public const string GUID = "star4wish.dsp.recipeslots";
         public const string NAME = "DSP-RecipeSlots";
-        public const string VERSION = "1.2.0";
+        public const string VERSION = "1.2.1";
 
         public static Plugin Instance;
         public static ManualLogSource Log;

@@ -1,5 +1,6 @@
-﻿#if !SHIP
+#if !SHIP
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text;
@@ -135,6 +136,10 @@ namespace DSPRecipeSlots
                 case "techpos": TechPos(p, o); break;
                 case "technode": TechNode(p, o); break;
                 case "uislots": AssemblerUiPatch.DumpSlots(o); break;
+                case "uiscreen": UiScreen(o); break;
+                case "pkg": Pkg(p, o); break;
+                case "uipatches": UiPatches(o); break;
+                case "uikids": UiKids(p, o); break;
                 case "autofeed": AutoFeed(p, o); break;
                 default: o.AppendLine("  unknown command: " + cmd); break;
             }
@@ -578,6 +583,80 @@ namespace DSPRecipeSlots
                 o.AppendLine("  uiclose windowActive=" + uiGame.assemblerWindow.gameObject.activeSelf);
             }
             catch (Exception ex) { o.AppendLine("  uiclose exception: " + ex.Message); }
+        }
+
+        /// <summary>打印窗口内所有 Text 的屏幕坐标（像素，左上原点），用于把截图里的可疑文字对回控件。</summary>
+        private static void UiScreen(StringBuilder o)
+        {
+            var w = AssemblerWindow();
+            if (w == null) { o.AppendLine("  assembler window null"); return; }
+            var canvas = w.GetComponentInParent<Canvas>();
+            Camera cam = (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay) ? canvas.worldCamera : null;
+            var texts = w.GetComponentsInChildren<Text>(true);
+            o.AppendLine("  uiscreen texts=" + texts.Length + " cam=" + (cam != null ? cam.name : "null"));
+            foreach (var t in texts)
+            {
+                if (t == null) continue;
+                var rt = t.rectTransform;
+                var c = new Vector3[4];
+                rt.GetWorldCorners(c);
+                Vector2 p0 = RectTransformUtility.WorldToScreenPoint(cam, c[0]);
+                Vector2 p2 = RectTransformUtility.WorldToScreenPoint(cam, c[2]);
+                o.AppendLine("  '" + t.text + "' on=" + t.gameObject.activeInHierarchy
+                    + " path=" + PathOf(t.transform)
+                    + " xy=(" + (p0.x).ToString("F0") + "," + (Screen.height - p2.y).ToString("F0") + ")"
+                    + "-(" + (p2.x).ToString("F0") + "," + (Screen.height - p0.y).ToString("F0") + ")");
+            }
+        }
+
+        /// <summary>增删玩家背包行数（模拟背包扩容，验证「窗口高度跟随物品栏行数」）。</summary>
+        private static void Pkg(string[] p, StringBuilder o)
+        {
+            var player = GameMain.mainPlayer;
+            if (player == null || player.package == null) { o.AppendLine("  no player package"); return; }
+            int rows = p.Length > 1 ? int.Parse(p[1]) : 4;
+            int cols = player.GetPackageColumnCount();
+            player.package.SetSize(rows * cols + 1);
+            o.AppendLine("  pkg size=" + player.package.size + " cols=" + cols
+                + " rows=" + ((player.package.size - 1) / cols + 1)
+                + " uiRowCount=" + (UIRoot.instance != null && UIRoot.instance.uiGame != null && UIRoot.instance.uiGame.assemblerWindow != null
+                    ? UIRoot.instance.uiGame.assemblerWindow.playerInventory.rowCount.ToString() : "?"));
+        }
+
+        /// <summary>列出 UIAssemblerWindow 上被哪些 Harmony 补丁改过（定位第三方 MOD 冲突）。</summary>
+        private static void UiPatches(StringBuilder o)
+        {
+            var t = typeof(UIAssemblerWindow);
+            var flags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+            foreach (var m in t.GetMethods(flags))
+            {
+                var info = HarmonyLib.Harmony.GetPatchInfo(m);
+                if (info == null) continue;
+                var owners = new List<string>();
+                if (info.Prefixes != null) foreach (var x in info.Prefixes) owners.Add("pre:" + x.owner);
+                if (info.Postfixes != null) foreach (var x in info.Postfixes) owners.Add("post:" + x.owner);
+                if (info.Transpilers != null) foreach (var x in info.Transpilers) owners.Add("trans:" + x.owner);
+                if (info.Finalizers != null) foreach (var x in info.Finalizers) owners.Add("fin:" + x.owner);
+                o.AppendLine("  " + m.Name + " <- " + string.Join(", ", owners.ToArray()));
+            }
+        }
+
+        /// <summary>列出某个 UI 节点的直接子物体（默认 productGroup=circle-back），用于排查被塞进来的克隆体。</summary>
+        private static void UiKids(string[] p, StringBuilder o)
+        {
+            string path = p.Length > 1
+                ? string.Join(" ", p, 1, p.Length - 1)
+                : "UI Root/Overlay Canvas/In Game/Windows/Assembler Window/produce/circle-back";
+            var go = GameObject.Find(path);
+            if (go == null) { o.AppendLine("  no object: " + path); return; }
+            o.AppendLine("  kids of '" + go.name + "' n=" + go.transform.childCount + " activeSelf=" + go.activeSelf);
+            for (int i = 0; i < go.transform.childCount; i++)
+            {
+                var c = go.transform.GetChild(i);
+                var crt = c as RectTransform;
+                o.AppendLine("    [" + i + "] " + c.name + " activeSelf=" + c.gameObject.activeSelf
+                    + (crt != null ? " pos=" + crt.anchoredPosition.ToString("F0") : ""));
+            }
         }
 
         private static void UiDump(string[] p, StringBuilder o)

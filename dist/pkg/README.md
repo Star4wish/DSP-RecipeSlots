@@ -1,10 +1,10 @@
-# DSP-RecipeSlots
+﻿# DSP-RecipeSlots
 
 Break the vanilla "max 6 ingredients / products per recipe" limit in **Dyson Sphere Program**, with matching UI support for assemblers, the tech tree and research labs.
 
 - Game version: `0.10.35.29151` (EA)
 - Runtime: BepInEx 5.4.17 + HarmonyX
-- Plugin version: `1.2.0`
+- Plugin version: `1.2.1`
 - Status: single-player chain fully verified in game; multiplayer checked by static analysis + load-level coexistence (two-client test still pending)
 
 ---
@@ -19,7 +19,7 @@ Break the vanilla "max 6 ingredients / products per recipe" limit in **Dyson Sph
 | **>6 products** | Recipes may have more than 2 `Results`; the assembler window shows dynamic product slots, click to take |
 | **Labs with >6 matrices** | Matrix labs can consume a 7th+ matrix; `matrixIds/matrixPoints` are extended from config, and need broadcast / bottleneck gate / accept / chained-lab transfer are all looped |
 | **Labs with >6 ingredients** | A matrix lab running an `ERecipeType.Research` recipe also supports 7+ ingredients |
-| **UI support** | Multi-row ingredient/product layout with auto window height, tech-tree cost icons, tech tooltip cost row, 3×3 matrix grid in the lab window, item/recipe tooltip icon rows |
+| **UI support** | Multi-row ingredient/product layout (7 per row, compact 56 px slots, window height always keeps the whole player inventory visible), tech-tree cost icons, tech tooltip cost row, 3×3 matrix grid in the lab window, item/recipe tooltip icon rows |
 
 ### How it works
 
@@ -35,7 +35,7 @@ Vanilla hard-codes 6 in the input chain (need broadcast → inserter picking →
 
 1. Install BepInEx 5.4.17 (r2modman / Thunderstore resolves it automatically);
 2. Put `DSP-RecipeSlots.dll` into `<game>/BepInEx/plugins/DSP-RecipeSlots/`;
-3. Start the game. `DSP-RecipeSlots 1.2.0 loaded` in the log means success.
+3. Start the game. `DSP-RecipeSlots 1.2.1 loaded` in the log means success.
 
 ### Config (`BepInEx/config/star4wish.dsp.recipeslots.cfg`)
 
@@ -70,7 +70,7 @@ Vanilla hard-codes 6 in the input chain (need broadcast → inserter picking →
 | **>6 种产物** | 配方 `Results` 可超过 2 项；装配台 UI 动态生成产物槽，可点击取出 |
 | **研究站 >6 矩阵** | 研究站可消耗第 7+ 种矩阵；`matrixIds/matrixPoints` 按配置扩展，需求广播/瓶颈判定/受理/叠站转移全部循环化 |
 | **研究站 >6 输入普通配方** | 矩阵研究站跑 `ERecipeType.Research` 配方时支持 7+ 原料 |
-| **UI 适配** | 装配台产物/原料多行、窗口自适应高度、科技树成本图标、科技 tooltip 成本行、研究站 3×3 九宫格矩阵槽、物品/配方 tooltip 图标行 |
+| **UI 适配** | 装配台原料/产物多行（满 7 个换行、56 px 紧凑槽位，窗口高度始终保证物品栏整块可见）、科技树成本图标、科技 tooltip 成本行、研究站 3×3 九宫格矩阵槽、物品/配方 tooltip 图标行 |
 
 ### 工作原理
 
@@ -86,7 +86,7 @@ Vanilla hard-codes 6 in the input chain (need broadcast → inserter picking →
 
 1. 安装 BepInEx 5.4.17（r2modman / Thunderstore 会自动处理依赖）；
 2. 将 `DSP-RecipeSlots.dll` 放到 `<游戏目录>/BepInEx/plugins/DSP-RecipeSlots/`；
-3. 启动游戏。日志出现 `DSP-RecipeSlots 1.2.0 loaded` 即成功。
+3. 启动游戏。日志出现 `DSP-RecipeSlots 1.2.1 loaded` 即成功。
 
 ### 配置（`BepInEx/config/star4wish.dsp.recipeslots.cfg`）
 

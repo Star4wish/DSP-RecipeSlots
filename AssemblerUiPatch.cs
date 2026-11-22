@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using HarmonyLib;
 using UnityEngine;
@@ -8,12 +8,12 @@ namespace DSPRecipeSlots
 {
     /// <summary>
     /// 装配台/熔炉/化工厂等生产建筑窗口：
-    ///  - 原版只显示产物图标（最多单行），窗口不会为 >4 产物 / >6 原料加高。
-    ///  - 这里在「原料 &gt; 6 或 产物 &gt; 4」时切换到多行布局：
-    ///      · 新增「原料需求」行（图标 + 需求数量，悬浮有物品 tooltip），原料 6/行；
-    ///      · 产物 4/行（每行 72px），窗口按行数加高，「物品清单」区自动下移；
-    ///      · 速度/供电区移到右侧。
-    ///  - 未超限时保持原版单行布局（产物最多 4 个单行），避免影响普通配方。
+    ///  - 原版只显示产物图标（最多单行），窗口不会为 &gt;4 产物 / &gt;6 原料加高。
+    ///  - 这里在「原料 &gt; 7 或 产物 &gt; 4」时切换到多行布局：
+    ///      · 新增「原料需求」行（图标 + 需求数量，悬浮有物品 tooltip），原料 7/行；
+    ///      · 产物 7/行，槽 56px、行距 60px，窗口按行数加高，「物品清单」区自动下移；
+    ///      · 窗口高度按「内容底 + 物品清单标题 + 物品栏实际行数」同步计算，物品栏整块可见。
+    ///  - 未超限时保持原版单行布局（原料 7 个以内单行、产物最多 4 个单行），避免影响普通配方。
     ///
     /// 实机层级（依据 uidump）：
     ///   produce/circle-back = productGroup：整槽模板（bg Image + product-icon + circle-fg
@@ -46,11 +46,22 @@ namespace DSPRecipeSlots
         private static readonly Dictionary<UIAssemblerWindow, WinState> Cache = new Dictionary<UIAssemblerWindow, WinState>();
         private static bool _errorLogged;
 
-        private const float SlotSize = 64f;
-        private const float RowH = 72f;
-        private const int InPerRow = 6;      // 原料每行数量
-        private const int OutPerRow = 6;     // 产物每行数量（满 6 个才换行）
+        private const float SlotSize = 56f;   // 多行布局的配方物品槽（原版 64；缩小以降低整窗高度）
+        private const float VanillaSlot = 64f; // 单行（原版）布局保持 64，避免影响普通配方
+        private const float RowH = 58f;       // 行距（原版模板 72）
+        private const int InPerRow = 7;       // 原料每行数量：满 7 个才换行
+        private const int OutPerRow = 7;      // 产物每行数量：满 7 个才换行
         private const int MultiOutTrigger = 4; // 产物 >4 即切换为「原料在上/产物在下」的多行 UI
+
+        // 多行布局垂直节奏（窗口坐标，向下为负；槽位局部坐标 = 窗口 y + ProduceCenterOffset）
+        private const float ProduceCenterOffset = 100f;
+        private const float SpeedHalfH = 24f;          // 速度区高 48 的一半
+        private const float InputY0 = -88f;            // 首行原料中心（顶边 -60，位于标题栏之下）
+        private const float GapInputToSpeed = 28f;     // 原料底 → 速度区中心
+        private const float GapSpeedToProduct = 8f;    // 速度区底 → 首行产物顶
+        private const float GapContentToInventory = 40f; // 内容底 → 物品栏顶（含「物品清单」标题 36）
+        private const float GapIncExtra = 40f;         // 解锁增产科技时额外下移（原版 -180 → -220）
+        private const float InventoryBottomMargin = 36f; // 物品栏底 → 窗口底（原版 420-180-204=36）
 
         [HarmonyPostfix]
         private static void Postfix(UIAssemblerWindow __instance)
@@ -71,6 +82,19 @@ namespace DSPRecipeSlots
             st = new WinState();
             Cache[w] = st;
             return st;
+        }
+
+        /// <summary>增产信息条是否生效（解锁增产科技 1151 后原版会在窗口底部多占 40px）。</summary>
+        private static bool IncActive(UIAssemblerWindow w)
+        {
+            return w.incInfoGroup != null && w.incInfoGroup.gameObject.activeSelf;
+        }
+
+        /// <summary>物品栏网格实际高度：行数 × 50 + 4（原版把「物品清单」标题画在网格上方 36px）。</summary>
+        private static float InventoryHeight(UIAssemblerWindow w)
+        {
+            int rows = w.playerInventory != null ? Mathf.Max(1, w.playerInventory.rowCount) : 4;
+            return rows * 50f + 4f;
         }
 
         private static void Update(UIAssemblerWindow w)
@@ -101,6 +125,7 @@ namespace DSPRecipeSlots
             HideAll(st.GridProducts);
             HideAll(st.Inputs);
             if (w.productGroup != null) w.productGroup.gameObject.SetActive(true);
+            HideForeignClones(w.productGroup != null ? w.productGroup.transform : null);
             if (w.servingGroup != null) w.servingGroup.gameObject.SetActive(true);
             if (w.servingBox != null)
             {
@@ -122,14 +147,14 @@ namespace DSPRecipeSlots
                 if (nOut <= idx) { s.Root.SetActive(false); continue; }
                 s.Root.SetActive(true);
                 var rt = (RectTransform)s.Root.transform;
-                rt.anchoredPosition = new Vector2(19f + SlotSize * idx, 0f);
-                rt.sizeDelta = new Vector2(SlotSize, SlotSize);
+                rt.anchoredPosition = new Vector2(19f + VanillaSlot * idx, 0f);
+                SizeSlot(s, VanillaSlot);
                 FillProduct(s, a, data, idx, w);
             }
 
             if (w.productGroup != null)
-                w.productGroup.sizeDelta = new Vector2(SlotSize * Math.Max(1, nOut), SlotSize);
-            float shift = SlotSize * (Math.Max(1, nOut) - 1);
+                w.productGroup.sizeDelta = new Vector2(VanillaSlot * Math.Max(1, nOut), VanillaSlot);
+            float shift = VanillaSlot * (Math.Max(1, nOut) - 1);
             if (w.speedGroup != null)
                 w.speedGroup.anchoredPosition = new Vector2(80f + shift, 0f); // y 必须归零，否则残留多行模式的偏移
             SetArrowDirection(w, false);
@@ -140,13 +165,21 @@ namespace DSPRecipeSlots
             float needed = 160f + shift + servingWidth + 24f;
             float baseWidth = 80f + (w.playerInventory != null ? w.playerInventory.colCount : 10) * 50f;
             float target = Math.Max(baseWidth, needed);
+            // 单行模式沿用原版高度公式，物品栏行数/增产科技都会改变窗口高度
+            bool incOn = IncActive(w);
+            float singleH = (w.playerInventory != null && w.playerInventory.active)
+                ? InventoryHeight(w) + 216f   // 原版：行数×50 + 220（InventoryHeight 已含网格 +4）
+                : 270f;
+            if (incOn) singleH += 40f;
             if (w.windowTrans != null)
-                w.windowTrans.sizeDelta = new Vector2(target, 420f);
+                w.windowTrans.sizeDelta = new Vector2(target, singleH);
             if (w.playerInventoryGroup != null)
-                w.playerInventoryGroup.anchoredPosition = new Vector2(w.playerInventoryGroup.anchoredPosition.x, -180f);
+                w.playerInventoryGroup.anchoredPosition = new Vector2(
+                    w.playerInventoryGroup.anchoredPosition.x, incOn ? -220f : -180f);
+            SyncSpeedLabels(w, false, nIn, nOut);
         }
 
-        // ───────────────────────── 多行（>6 原料 / >4 产物）─────────────────────────
+        // ───────────────────────── 多行（>7 原料 / >4 产物）─────────────────────────
 
         private static void ApplyMulti(UIAssemblerWindow w, ref AssemblerComponent a, RecipeExecuteData data, int nIn, int nOut, WinState st)
         {
@@ -160,17 +193,18 @@ namespace DSPRecipeSlots
 
             // 槽位是 produce 组的子节点：produce(anchor 顶部、高 100) 的中心在窗口 y = -100，
             // 因此「窗口 y」与「槽位 anchoredY」相差 +100。
-            const float ProduceCenterOffset = 100f;
-            float inputY0 = -75f;
+            bool incOn = IncActive(w);
+            float inputY0 = InputY0;
             float lastInputBottom = inputY0 - (inRows - 1) * RowH - SlotSize * 0.5f;
-            float speedY = lastInputBottom - 40f;
-            float prodY0 = speedY - 70f;
+            float speedY = lastInputBottom - GapInputToSpeed;
+            float prodY0 = speedY - SpeedHalfH - GapSpeedToProduct - SlotSize * 0.5f;
             float contentBottom = prodY0 - (outRows - 1) * RowH - SlotSize * 0.5f;
-            float invTopY = contentBottom - 64f;
-            float targetH = -invTopY + 204f + 20f;
+            float invTopY = contentBottom - GapContentToInventory - (incOn ? GapIncExtra : 0f);
+            // 物品栏（「物品清单」标题 36 + N 行 × 50）：窗口高度必须同步，否则底部行会被窗口底边裁掉
+            float targetH = -invTopY + InventoryHeight(w) + InventoryBottomMargin;
             float fullW = Mathf.Min(nIn, inCols) * SlotSize;
 
-            // 上方：原料（6/行，圆圈格 + 右下角数量）；箭头朝下表示 原料 → 产物
+            // 上方：原料（7/行，圆圈格 + 右下角数量）；箭头朝下表示 原料 → 产物
             EnsureSlots(w, st.Inputs, nIn, true);
             for (int i = 0; i < st.Inputs.Count; i++)
             {
@@ -179,7 +213,7 @@ namespace DSPRecipeSlots
                 if (i >= nIn) { s.Root.SetActive(false); continue; }
                 s.Root.SetActive(true);
                 var rt = (RectTransform)s.Root.transform;
-                rt.sizeDelta = new Vector2(SlotSize, SlotSize);
+                SizeSlot(s, SlotSize);
                 float yw = inputY0 - (i / inCols) * RowH;
                 rt.anchoredPosition = new Vector2(19f + (i % inCols) * SlotSize, yw + ProduceCenterOffset);
                 FillInput(s, a, data, i);
@@ -195,7 +229,7 @@ namespace DSPRecipeSlots
                 SetArrowDirection(w, true);
             }
 
-            // 下方：产物（4/行）
+            // 下方：产物（7/行）
             EnsureSlots(w, st.GridProducts, nOut, false);
             for (int i = 0; i < st.GridProducts.Count; i++)
             {
@@ -204,11 +238,15 @@ namespace DSPRecipeSlots
                 if (i >= nOut) { s.Root.SetActive(false); continue; }
                 s.Root.SetActive(true);
                 var rt = (RectTransform)s.Root.transform;
-                rt.sizeDelta = new Vector2(SlotSize, SlotSize);
+                SizeSlot(s, SlotSize);
                 float yw = prodY0 - (i / OutPerRow) * RowH;
                 rt.anchoredPosition = new Vector2(19f + (i % OutPerRow) * SlotSize, yw + ProduceCenterOffset);
                 FillProduct(s, a, data, i, w);
             }
+
+            // 增产信息条：多行布局里由原来的 produce 固定位（-108）跟着物品栏一起下移，避免压住产物行
+            if (incOn && w.incInfoGroup != null)
+                w.incInfoGroup.anchoredPosition = new Vector2(19f, invTopY + ProduceCenterOffset + 12f);
 
             float needed = 19f + contentW + 40f;
             float baseWidth = 80f + (w.playerInventory != null ? w.playerInventory.colCount : 10) * 50f;
@@ -217,6 +255,7 @@ namespace DSPRecipeSlots
                 w.windowTrans.sizeDelta = new Vector2(targetW, targetH);
             if (w.playerInventoryGroup != null)
                 w.playerInventoryGroup.anchoredPosition = new Vector2(w.playerInventoryGroup.anchoredPosition.x, invTopY);
+            SyncSpeedLabels(w, true, nIn, nOut);
         }
 
         /// <summary>速度区箭头：多行模式下改成朝下（暗示产物 → 速度 → 原料的阅读顺序）。</summary>
@@ -322,8 +361,8 @@ namespace DSPRecipeSlots
         {
             var slot = new Slot { Root = go };
             var t = go.transform;
-            var rt = t as RectTransform;
-            if (rt != null) rt.sizeDelta = new Vector2(SlotSize, SlotSize);
+            StripForeignClones(t);   // POR 等 MOD 会往 circle-back 里追加产物槽，克隆时不能一起继承
+            SizeSlot(slot, SlotSize);
             HideChild(t, "product-icon-1");
             HideChild(t, "circle-fg-1");
             HideChild(t, "extra-circle-fg-1");
@@ -364,10 +403,72 @@ namespace DSPRecipeSlots
             return slot;
         }
 
+        /// <summary>按给定边长缩放整个槽：根节点 + 两个进度圈（图标保持原版 40px，保证可读性）。</summary>
+        /// <summary>
+        /// 第三方 AssemblerUI 会在速度区挂「assembler-speed-in/out-itemN」逐物品速度标签。
+        /// 那些标签按原版 2 槽位坐标定位，多行布局下会飘到窗口外/压住产物行，故多行时隐藏、单行时按数量恢复。
+        /// </summary>
+        private static void SyncSpeedLabels(UIAssemblerWindow w, bool multi, int nIn, int nOut)
+        {
+            if (w.speedGroup == null) return;
+            var t = w.speedGroup.transform;
+            const string inPrefix = "assembler-speed-in-item";
+            const string outPrefix = "assembler-speed-out-item";
+            for (int i = 0; i < t.childCount; i++)
+            {
+                var c = t.GetChild(i);
+                if (c == null) continue;
+                string n = c.name;
+                bool isIn;
+                int prefixLen;
+                if (n.StartsWith(inPrefix, StringComparison.Ordinal)) { isIn = true; prefixLen = inPrefix.Length; }
+                else if (n.StartsWith(outPrefix, StringComparison.Ordinal)) { isIn = false; prefixLen = outPrefix.Length; }
+                else continue;
+                int idx;
+                if (!int.TryParse(n.Substring(prefixLen), out idx)) continue;
+                int count = isIn ? nIn : nOut;
+                bool want = !multi && idx < Mathf.Min(count, 5);
+                if (c.gameObject.activeSelf != want) c.gameObject.SetActive(want);
+            }
+        }
+
+        private static void SizeSlot(Slot s, float size)
+        {
+            if (s == null || s.Root == null) return;
+            var rt = s.Root.transform as RectTransform;
+            if (rt != null) rt.sizeDelta = new Vector2(size, size);
+            if (s.Progress != null) s.Progress.rectTransform.sizeDelta = new Vector2(size - 4f, size - 4f);
+            if (s.ExtraProgress != null) s.ExtraProgress.rectTransform.sizeDelta = new Vector2(size - 10f, size - 10f);
+        }
+
         private static void HideChild(Transform t, string name)
         {
             var c = t.Find(name);
             if (c != null) c.gameObject.SetActive(false);
+        }
+
+        /// <summary>外来 MOD（如 ProjectOrbitalRing）会往产物槽模板里塞 "(Clone)" 子物体补显示多产物；自建槽只要原版部件。</summary>
+        private static void StripForeignClones(Transform t)
+        {
+            if (t == null) return;
+            for (int i = t.childCount - 1; i >= 0; i--)
+            {
+                var c = t.GetChild(i);
+                if (c != null && c.name.IndexOf("(Clone)", StringComparison.Ordinal) >= 0)
+                    UnityEngine.Object.Destroy(c.gameObject);
+            }
+        }
+
+        /// <summary>单行模式：隐藏模板里被外来 MOD 追加的产物槽，避免与我们自己的产物槽重复显示。</summary>
+        private static void HideForeignClones(Transform t)
+        {
+            if (t == null) return;
+            for (int i = 0; i < t.childCount; i++)
+            {
+                var c = t.GetChild(i);
+                if (c != null && c.gameObject.activeSelf && c.name.IndexOf("(Clone)", StringComparison.Ordinal) >= 0)
+                    c.gameObject.SetActive(false);
+            }
         }
 
         // ───────────────────────── 点击取物（调试通道复用）─────────────────────────
