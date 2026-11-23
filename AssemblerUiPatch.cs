@@ -41,6 +41,13 @@ namespace DSPRecipeSlots
             public readonly List<Slot> Inputs = new List<Slot>();       // 旧版自建输入行（保留清空）
             public int ServingCols;                                     // 当前 serving-box 列数
             public bool Multi;
+
+            // 原版「取消配方 X」按钮（resetButton）：多行布局会隐藏它所在的 productGroup，
+            // 这里把它临时挂到原料区左上角，单行模式再还原回原父节点/位置。
+            public bool ResetSaved;
+            public Transform ResetParent;
+            public Vector2 ResetPos;
+            public int ResetSibling;
         }
 
         private static readonly Dictionary<UIAssemblerWindow, WinState> Cache = new Dictionary<UIAssemblerWindow, WinState>();
@@ -115,6 +122,7 @@ namespace DSPRecipeSlots
             st.Multi = multi;
             if (multi) ApplyMulti(w, ref a, data, nIn, nOut, st);
             else ApplySingle(w, ref a, data, nIn, nOut, st);
+            PlaceResetButton(w, st, multi);
             ClampWindow(w);
         }
 
@@ -177,6 +185,51 @@ namespace DSPRecipeSlots
                 w.playerInventoryGroup.anchoredPosition = new Vector2(
                     w.playerInventoryGroup.anchoredPosition.x, incOn ? -220f : -180f);
             SyncSpeedLabels(w, false, nIn, nOut);
+        }
+
+        /// <summary>
+        /// 原版「取消配方」X 按钮（`UIAssemblerWindow.resetButton`，prefab 名 `stop-btn`，
+        /// 点击 → `OnRecipeResetClick` → 取回原料并清空配方）。
+        /// 多行布局会把 productGroup 整体隐藏，连它一起藏掉；这里把它改挂到原料区左上角，
+        /// 点击监听仍是原版注册的，所以使用习惯不变；切回单行时还原父节点/位置。
+        /// </summary>
+        private static void PlaceResetButton(UIAssemblerWindow w, WinState st, bool multi)
+        {
+            var rb = w.resetButton;
+            if (rb == null) return;
+            var t = rb.transform as RectTransform;
+            if (t == null) return;
+
+            if (!multi)
+            {
+                if (st.ResetSaved && st.ResetParent != null && t.parent != st.ResetParent)
+                {
+                    t.SetParent(st.ResetParent, false);
+                    t.anchoredPosition = st.ResetPos;
+                    try { t.SetSiblingIndex(st.ResetSibling); } catch { }
+                }
+                return;
+            }
+
+            if (!st.ResetSaved)
+            {
+                st.ResetParent = t.parent;
+                st.ResetPos = t.anchoredPosition;
+                st.ResetSibling = t.GetSiblingIndex();
+                st.ResetSaved = true;
+            }
+            var parent = w.produceGroup != null ? w.produceGroup : (w.windowTrans as RectTransform);
+            if (parent == null) return;
+            if (t.parent != parent) t.SetParent(parent, false);
+            // 锚点与配方槽保持一致（produce 左缘、垂直居中），再按「窗口坐标 + ProduceCenterOffset」定位
+            t.anchorMin = new Vector2(0f, 0.5f);
+            t.anchorMax = new Vector2(0f, 0.5f);
+            t.pivot = new Vector2(0.5f, 0.5f);
+            // 原料区左上角：首行原料格左缘再往左一点、略高于该行顶边
+            float x = 19f + SlotSize * 0.5f;
+            float yw = InputY0 + SlotSize * 0.5f + 12f;
+            t.anchoredPosition = new Vector2(x, yw + ProduceCenterOffset);
+            t.SetAsLastSibling();
         }
 
         // ───────────────────────── 多行（>7 原料 / >4 产物）─────────────────────────

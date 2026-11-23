@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("DSP-RecipeSlots")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.2.1.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.2.1+86cbf2e752534527f22d769bd598ff91c9c5070c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.2.1+f1d7edee550883cc041073a425bf4ee122f5fe0c")]
 [assembly: System.Reflection.AssemblyProductAttribute("DSP-RecipeSlots")]
 [assembly: System.Reflection.AssemblyTitleAttribute("DSP-RecipeSlots")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.2.1.0")]
