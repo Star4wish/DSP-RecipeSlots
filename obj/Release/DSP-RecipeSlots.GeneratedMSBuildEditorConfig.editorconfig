@@ -1,6 +1,6 @@
 is_global = true
 build_property.RootNamespace = DSPRecipeSlots
-build_property.ProjectDir = C:\WorkWork\DSP MOD\DSP-RecipeSlots\
+build_property.ProjectDir = C:\XCM\DSP MOD\DSP-RecipeSlots\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.CsWinRTUseWindowsUIXamlProjections = false
