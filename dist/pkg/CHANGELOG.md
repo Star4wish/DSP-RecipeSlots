@@ -1,7 +1,21 @@
-# Changelog
+﻿# Changelog
 
 Bilingual: each version lists the English summary first, then the Chinese details.
 双语说明：每个版本先列英文摘要，再列中文详情。
+
+## 1.2.2
+
+
+### English
+- **"Cancel recipe" (X) button restored in the multi-row layout**: the vanilla button (`UIAssemblerWindow.resetButton`, prefab `produce/circle-back/stop-btn`) is hidden together with the product group that the multi-row layout replaced. A clone is now placed at the top-left corner of the ingredient area, its normally alpha-0 idle look is forced visible, and its click still calls the original `OnRecipeResetClick` (refund ingredients + clear recipe). Single-row recipes keep the vanilla button and hide the clone, so there is no duplicate.
+- **Shutdown `NullReferenceException` guard**: `GameLogic.Update()` dereferences `mainPlayer` on its first line; when a mod's load/quit flow ticks it before the player exists, the game showed a red `NullReferenceException ... GameLogic.Update (IL_0006)` error report. A first-priority prefix now skips only those not-ready frames (`data`/`mainPlayer`/`packageUtility` null); normal frames are untouched. Verified: no such error during runtime or shutdown.
+- Dev builds: `newgame` is refused while a load is in progress (prevents a `GameLoader.FixedUpdate` race); new diagnostics `uireset`, `resetclick`, `uihit`, `uiclick`, `recipscan`, `tpto`.
+
+### 中文
+- **多行布局恢复「取消配方 X」按钮**：原版按钮（`UIAssemblerWindow.resetButton`，预制体路径 `produce/circle-back/stop-btn`）会随被替换的产物容器一起隐藏。现在克隆一份放在**原料区左上角**，把原版「平时透明、悬停淡入」改为常显，点击仍调用原版 `OnRecipeResetClick`（退回原料 + 清空配方）；单行配方仍用原版按钮并隐藏克隆，不会重复。
+- **退出时 `NullReferenceException` 防御**：`GameLogic.Update()` 首行解引用 `mainPlayer`；某些 MOD 的读档/退出流程会在玩家尚未创建时调用一帧，导致红色错误框 `NullReferenceException ... GameLogic.Update (IL_0006)`。现加最高优先级前缀，仅在 `data`/`mainPlayer`/`packageUtility` 为空时跳过该帧，正常帧行为不变。已验证运行期与退出均无此报错。
+- 开发构建：加载过程中 `newgame` 会被拒绝（避免 `GameLoader.FixedUpdate` 竞争）；新增诊断命令 `uireset`、`resetclick`、`uihit`、`uiclick`、`recipscan`、`tpto`。
+
 
 ## 1.2.1
 

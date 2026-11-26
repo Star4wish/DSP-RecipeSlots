@@ -102,6 +102,12 @@ namespace DSPRecipeSlots
                 case "dump": Dump(p, o); break;
                 case "entities": Entities(p, o); break;
                 case "recipeinfo": RecipeInfo(p, o); break;
+                case "recipscan": RecipeScan(p, o); break;
+                case "uireset": UiReset(o); break;
+                case "resetclick": ResetClick(o); break;
+                case "uihit": UiHit(p, o); break;
+                case "tpto": TpTo(p, o); break;
+                case "uiclick": UiClick(p, o); break;
                 case "tickinfo": TickInfo(o); break;
                 case "force": Force(p, o); break;
                 case "runbg": Application.runInBackground = true; o.AppendLine("  runInBackground=true"); break;
@@ -172,6 +178,14 @@ namespace DSPRecipeSlots
         private static void NewGame(string[] p, StringBuilder o)
         {
             if (GameMain.instance == null) { o.AppendLine("  game instance not ready"); return; }
+            // 读档/加载过程中开新档会与 GameLoader 竞争（表现为 GameLoader.FixedUpdate NRE 弹窗）。
+            // 只在「主菜单且未加载」时允许。
+            if (GameMain.isLoading || !DSPGame.IsMenuDemo)
+            {
+                o.AppendLine("  refused: game is loading or not at main menu (isLoading=" + GameMain.isLoading
+                    + " menuDemo=" + DSPGame.IsMenuDemo + ")");
+                return;
+            }
             int seed = p.Length > 1 ? int.Parse(p[1]) : 12345678;
             int starCount = p.Length > 2 ? int.Parse(p[2]) : 64;
             float res = p.Length > 3 ? float.Parse(p[3]) : 1f;
@@ -1182,6 +1196,158 @@ namespace DSPRecipeSlots
             catch (Exception ex) { o.AppendLine("  load exception: " + ex.GetType().Name + " " + ex.Message); }
         }
 
+        /// <summary>扫描配方：列出原料数 ≥ minIn 或 产物数 ≥ minOut 的配方（用于找 >6 配方做 UI 验证）。</summary>
+        /// <summary>诊断「取消配方 X」按钮：打印 resetButton 真实路径，以及名字含 stop/reset 的候选节点。</summary>
+        private static void UiReset(StringBuilder o)
+        {
+            var w = AssemblerWindow();
+            if (w == null) { o.AppendLine("  assembler window null"); return; }
+            var rb = w.resetButton;
+            if (rb == null) o.AppendLine("  resetButton = null");
+            else
+            {
+                var rt = rb.transform as RectTransform;
+                o.AppendLine("  resetButton path=" + PathOf(rb.transform)
+                    + " activeSelf=" + rb.gameObject.activeSelf
+                    + " activeInHierarchy=" + rb.gameObject.activeInHierarchy
+                    + (rt != null ? " pos=" + rt.anchoredPosition.ToString("F0") + " size=" + rt.sizeDelta.ToString("F0")
+                        + " anchor=" + rt.anchorMin.ToString("F2") + "/" + rt.anchorMax.ToString("F2") : "")
+                    + " parent=" + (rb.transform.parent != null ? PathOf(rb.transform.parent) : "null")
+                    + " comps=" + string.Join(",", System.Array.ConvertAll(rb.GetComponents<Component>(), c => c == null ? "null" : c.GetType().Name)));
+            }
+            int n = 0;
+            foreach (var t in w.GetComponentsInChildren<Transform>(true))
+            {
+                if (t == null) continue;
+                string nm = t.name.ToLowerInvariant();
+                if (!nm.Contains("stop") && !nm.Contains("reset") && !nm.Contains("cancel")) continue;
+                var rt = t as RectTransform;
+                o.AppendLine("  cand '" + PathOf(t) + "' activeSelf=" + t.gameObject.activeSelf
+                    + " activeInHierarchy=" + t.gameObject.activeInHierarchy
+                    + (rt != null ? " pos=" + rt.anchoredPosition.ToString("F0") + " size=" + rt.sizeDelta.ToString("F0") : "")
+                    + " comps=" + string.Join(",", System.Array.ConvertAll(t.GetComponents<Component>(), c => c == null ? "null" : c.GetType().Name)));
+                if (++n > 18) break;
+            }
+            // 克隆按钮（recipeslots-reset）的实际屏幕矩形与外观
+            var cloneT = (Transform)null;
+            foreach (var t2 in w.GetComponentsInChildren<Transform>(true))
+                if (t2 != null && t2.name == "recipeslots-reset") { cloneT = t2; break; }
+            if (cloneT == null) o.AppendLine("  clone(recipeslots-reset) = null");
+            else
+            {
+                var rt = cloneT as RectTransform;
+                var canvas = w.GetComponentInParent<Canvas>();
+                Camera cam = (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay) ? canvas.worldCamera : null;
+                var c = new Vector3[4];
+                if (rt != null) rt.GetWorldCorners(c);
+                Vector2 p0 = RectTransformUtility.WorldToScreenPoint(cam, c[0]);
+                Vector2 p2 = RectTransformUtility.WorldToScreenPoint(cam, c[2]);
+                o.AppendLine("  clone '" + PathOf(cloneT) + "' activeSelf=" + cloneT.gameObject.activeSelf
+                    + " activeInHierarchy=" + cloneT.gameObject.activeInHierarchy
+                    + (rt != null ? " pos=" + rt.anchoredPosition.ToString("F0") + " size=" + rt.sizeDelta.ToString("F0")
+                        + " anchor=" + rt.anchorMin.ToString("F2") + " sibling=" + rt.GetSiblingIndex() : ""));
+                o.AppendLine("    screen xy=(" + p0.x.ToString("F0") + "," + (Screen.height - p2.y).ToString("F0")
+                    + ")-(" + p2.x.ToString("F0") + "," + (Screen.height - p0.y).ToString("F0") + ")");
+                var imgs = cloneT.GetComponentsInChildren<UnityEngine.UI.Image>(true);
+                foreach (var im in imgs)
+                    o.AppendLine("    img '" + PathOf(im.transform) + "' en=" + im.enabled + " color=" + im.color
+                        + " sprite=" + (im.sprite != null ? im.sprite.name : "null") + " raycast=" + im.raycastTarget);
+                var rbBtn = cloneT.GetComponent<UnityEngine.UI.Button>();
+                if (rbBtn != null) o.AppendLine("    button interactable=" + rbBtn.interactable + " enabled=" + rbBtn.enabled);
+                var cg = cloneT.GetComponent<CanvasGroup>();
+                if (cg != null) o.AppendLine("    canvasGroup alpha=" + cg.alpha + " interactable=" + cg.interactable);
+            }
+        }
+        /// <summary>触发多行布局下克隆的「取消配方」按钮（recipeslots-reset）的 onClick，用于验证接线。</summary>
+        /// <summary>UI 射线检测：uihit x y（屏幕坐标，原点左上），打印命中的 UI 元素，用于校准点击坐标。</summary>
+        /// <summary>把玩家传送到指定实体上方（测试 UI 时需要玩家在地面机器旁）。</summary>
+        /// <summary>uiclick x y：在屏幕坐标处走 EventSystem 的真实指针事件（pointerDown/Up），用于验证按钮接线。</summary>
+        private static void UiClick(string[] p, StringBuilder o)
+        {
+            int x = int.Parse(p[1]);
+            int y = int.Parse(p[2]);
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            if (es == null) { o.AppendLine("  EventSystem null"); return; }
+            var ped = new UnityEngine.EventSystems.PointerEventData(es);
+            ped.position = new Vector2(x, Screen.height - y);
+            ped.button = UnityEngine.EventSystems.PointerEventData.InputButton.Left;
+            var list = new System.Collections.Generic.List<UnityEngine.EventSystems.RaycastResult>();
+            es.RaycastAll(ped, list);
+            if (list.Count == 0) { o.AppendLine("  no UI hit at (" + x + "," + y + ")"); return; }
+            var target = list[0].gameObject;
+            o.AppendLine("  top='" + PathOf(target.transform) + "'");
+            var handler = UnityEngine.EventSystems.ExecuteEvents.GetEventHandler<UnityEngine.EventSystems.IPointerClickHandler>(target);
+            if (handler == null) { o.AppendLine("  no IPointerClickHandler"); return; }
+            UnityEngine.EventSystems.ExecuteEvents.Execute(handler, ped, UnityEngine.EventSystems.ExecuteEvents.pointerDownHandler);
+            UnityEngine.EventSystems.ExecuteEvents.Execute(handler, ped, UnityEngine.EventSystems.ExecuteEvents.pointerUpHandler);
+            UnityEngine.EventSystems.ExecuteEvents.Execute(handler, ped, UnityEngine.EventSystems.ExecuteEvents.pointerClickHandler);
+            o.AppendLine("  click dispatched -> '" + PathOf(handler.transform) + "'");
+        }
+        private static void TpTo(string[] p, StringBuilder o)
+        {
+            var factory = Factory();
+            var player = GameMain.mainPlayer;
+            if (factory == null || player == null) { o.AppendLine("  no factory/player"); return; }
+            int eid = int.Parse(p[1]);
+            if (eid <= 0 || eid >= factory.entityCursor || factory.entityPool[eid].id != eid) { o.AppendLine("  entity not found: " + eid); return; }
+            var pos = factory.entityPool[eid].pos + new Vector3(0f, 4f, 0f);
+            player.position = pos;
+            player.transform.position = pos;
+            o.AppendLine("  tpto eid=" + eid + " -> " + pos.ToString("F1"));
+        }
+        private static void UiHit(string[] p, StringBuilder o)
+        {
+            int x = int.Parse(p[1]);
+            int y = int.Parse(p[2]);
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            if (es == null) { o.AppendLine("  EventSystem null"); return; }
+            var ped = new UnityEngine.EventSystems.PointerEventData(es);
+            ped.position = new Vector2(x, Screen.height - y);
+            var list = new System.Collections.Generic.List<UnityEngine.EventSystems.RaycastResult>();
+            es.RaycastAll(ped, list);
+            o.AppendLine("  screen=" + Screen.width + "x" + Screen.height + " at=(" + x + "," + y + ") hits=" + list.Count);
+            int n = 0;
+            foreach (var r in list)
+            {
+                if (r.gameObject == null) continue;
+                o.AppendLine("  hit '" + PathOf(r.gameObject.transform) + "' depth=" + r.depth + " module=" + (r.module != null ? r.module.GetType().Name : "null"));
+                if (++n >= 8) break;
+            }
+        }
+        private static void ResetClick(StringBuilder o)
+        {
+            var w = AssemblerWindow();
+            if (w == null) { o.AppendLine("  assembler window null"); return; }
+            Transform found = null;
+            foreach (var t in w.GetComponentsInChildren<Transform>(true))
+                if (t != null && t.name == "recipeslots-reset") { found = t; break; }
+            if (found == null) { o.AppendLine("  recipeslots-reset not found (multi layout not active?)"); return; }
+            var btn = found.GetComponent<UnityEngine.UI.Button>();
+            if (btn == null) { o.AppendLine("  no Button on clone"); return; }
+            o.AppendLine("  clone activeSelf=" + found.gameObject.activeSelf + " activeInHierarchy=" + found.gameObject.activeInHierarchy);
+            btn.onClick.Invoke();
+            o.AppendLine("  onClick invoked");
+        }
+
+        /// <summary>扫描配方：列出原料数 ≥ minIn 或 产物数 ≥ minOut 的配方（用于找 >6 配方做 UI 验证）。</summary>
+        private static void RecipeScan(string[] p, StringBuilder o)
+        {
+            int minIn = p.Length > 1 ? int.Parse(p[1]) : 7;
+            int minOut = p.Length > 2 ? int.Parse(p[2]) : 1;
+            int max = p.Length > 3 ? int.Parse(p[3]) : 40;
+            int n = 0;
+            foreach (var r in LDB.recipes.dataArray)
+            {
+                if (r == null) continue;
+                int ni = r.Items != null ? r.Items.Length : 0;
+                int no = r.Results != null ? r.Results.Length : 0;
+                if (ni < minIn && no < minOut) continue;
+                o.AppendLine("  rid=" + r.ID + " type=" + r.Type + " in=" + ni + " out=" + no + " name=" + r.name);
+                if (++n >= max) { o.AppendLine("  ... (truncated at " + max + ")"); break; }
+            }
+            if (n == 0) o.AppendLine("  no recipe matched (in>=" + minIn + " or out>=" + minOut + ")");
+        }
+
         private static void RecipeInfo(string[] p, StringBuilder o)
         {
             int rid = int.Parse(p[1]);
@@ -1219,5 +1385,13 @@ namespace DSPRecipeSlots
     }
 }
 #endif
+
+
+
+
+
+
+
+
 
 

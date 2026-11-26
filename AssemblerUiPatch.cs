@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using HarmonyLib;
 using UnityEngine;
@@ -41,6 +41,13 @@ namespace DSPRecipeSlots
             public readonly List<Slot> Inputs = new List<Slot>();       // 旧版自建输入行（保留清空）
             public int ServingCols;                                     // 当前 serving-box 列数
             public bool Multi;
+
+            // 原版「取消配方 X」按钮的克隆：原按钮在 produce/circle-back 下，多行布局会隐藏该容器，
+            // 因此克隆一份放到原料区左上角；点击回调仍调用原版 OnRecipeResetClick。
+            public GameObject ResetClone;
+            public Button ResetBtn;
+            public Image ResetImg;      // 根节点圆底
+            public Image ResetXImg;     // 内部的 X 图标
         }
 
         private static readonly Dictionary<UIAssemblerWindow, WinState> Cache = new Dictionary<UIAssemblerWindow, WinState>();
@@ -115,6 +122,7 @@ namespace DSPRecipeSlots
             st.Multi = multi;
             if (multi) ApplyMulti(w, ref a, data, nIn, nOut, st);
             else ApplySingle(w, ref a, data, nIn, nOut, st);
+            UpdateResetButton(w, st, multi);
             ClampWindow(w);
         }
 
@@ -177,6 +185,79 @@ namespace DSPRecipeSlots
                 w.playerInventoryGroup.anchoredPosition = new Vector2(
                     w.playerInventoryGroup.anchoredPosition.x, incOn ? -220f : -180f);
             SyncSpeedLabels(w, false, nIn, nOut);
+        }
+
+        /// <summary>
+        /// 多行布局下恢复「取消配方 X」：原版按钮是 `UIAssemblerWindow.resetButton`
+        /// （`produce/circle-back/stop-btn`，点击 → `OnRecipeResetClick`：取回原料 + 清空配方），
+        /// 但 circle-back 在多行布局里被整体隐藏。这里克隆一份挂到原料区左上角，
+        /// 点击直接调用原版私有方法，使用习惯与原版一致；单行模式隐藏克隆，避免重复。
+        /// </summary>
+        private static readonly System.Reflection.MethodInfo ResetRecipeMethod =
+            AccessTools.Method(typeof(UIAssemblerWindow), "OnRecipeResetClick");
+
+        private static bool _resetLogged;
+        private static void ResetLog(string msg)
+        {
+            if (_resetLogged) return;
+            _resetLogged = true;
+            Plugin.Log.LogInfo("[ui] reset-btn: " + msg);
+        }
+
+        private static void UpdateResetButton(UIAssemblerWindow w, WinState st, bool multi)
+        {
+            if (w.resetButton == null) { ResetLog("resetButton == null"); return; }
+            if (w.produceGroup == null) { ResetLog("produceGroup == null"); return; }
+            if (st.ResetClone == null)
+            {
+                var go = UnityEngine.Object.Instantiate<GameObject>(w.resetButton.gameObject, w.produceGroup);
+                go.name = "recipeslots-reset";
+                st.ResetClone = go;
+                ResetLog("clone created parent=" + (go.transform.parent != null ? go.transform.parent.name : "null"));
+                st.ResetImg = go.GetComponent<Image>();
+                if (st.ResetImg != null) st.ResetImg.raycastTarget = true;
+                var xT = go.transform.Find("x");
+                st.ResetXImg = xT != null ? xT.GetComponent<Image>() : null;
+                if (st.ResetXImg != null) st.ResetXImg.raycastTarget = false;
+                st.ResetBtn = go.GetComponent<Button>();
+                if (st.ResetBtn == null) st.ResetBtn = go.GetComponentInChildren<Button>(true);
+                if (st.ResetBtn != null)
+                {
+                    st.ResetBtn.onClick.RemoveAllListeners();
+                    st.ResetBtn.onClick.AddListener(() =>
+                    {
+                        try
+                        {
+                            if (ResetRecipeMethod != null) ResetRecipeMethod.Invoke(w, null);
+                            else Plugin.Log.LogWarning("[ui] OnRecipeResetClick not found");
+                        }
+                        catch (Exception ex) { Plugin.Log.LogError("[ui] recipe reset: " + ex); }
+                    });
+                }
+            }
+            if (!multi)
+            {
+                if (st.ResetClone.activeSelf) st.ResetClone.SetActive(false);
+                return;
+            }
+            if (!st.ResetClone.activeSelf) st.ResetClone.SetActive(true);
+            if (st.ResetBtn != null && !st.ResetBtn.interactable) st.ResetBtn.interactable = true;
+            var rt = st.ResetClone.transform as RectTransform;
+            if (rt != null)
+            {
+                // 锚点与配方槽一致（produce 左缘、垂直居中），再按「窗口坐标 + ProduceCenterOffset」定位
+                rt.anchorMin = new Vector2(0f, 0.5f);
+                rt.anchorMax = new Vector2(0f, 0.5f);
+                rt.pivot = new Vector2(0.5f, 0.5f);
+                rt.sizeDelta = new Vector2(18f, 18f);
+                float x = 19f + 7f;                                  // 首行原料格左缘稍内
+                float yw = InputY0 + SlotSize * 0.5f - 7f;           // 首行原料格左上角
+                rt.anchoredPosition = new Vector2(x, yw + ProduceCenterOffset);
+            }
+            // 原版 stop-btn 平时 alpha=0、悬停才淡入；多行布局下我们让它常显
+            if (st.ResetImg != null) { var c = st.ResetImg.color; if (c.a < 0.99f) { c.a = 1f; st.ResetImg.color = c; } }
+            if (st.ResetXImg != null) { var c2 = st.ResetXImg.color; if (c2.a < 0.99f) { c2.a = 1f; st.ResetXImg.color = c2; } }
+            st.ResetClone.transform.SetAsLastSibling();
         }
 
         // ───────────────────────── 多行（>7 原料 / >4 产物）─────────────────────────
@@ -590,4 +671,9 @@ namespace DSPRecipeSlots
         }
     }
 }
+
+
+
+
+
 

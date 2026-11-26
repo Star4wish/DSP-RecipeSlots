@@ -49,6 +49,7 @@ Vanilla hard-codes 6 in the input chain (need broadcast → inserter picking →
 > The release build contains **no** test recipes, test tech or file debug channel; they only exist in dev builds (`build.ps1` without `-Release`).
 
 ### Known limitations
+- **Vanilla GameLogic.Update null-guard**: if another mod's load/quit flow ticks it before the player exists (red NullReferenceException ... GameLogic.Update), the frame is skipped instead of erroring; normal frames are unchanged.
 
 - Recipe / item / tech IDs must be **< 12000** (`IconSet` index arrays are fixed at 12000).
 - Serialized assembler `recipeId` is a `short`: IDs must be ≤ 32767.
@@ -100,6 +101,7 @@ Vanilla hard-codes 6 in the input chain (need broadcast → inserter picking →
 > 发布版**不包含**任何测试配方、测试科技、文件调试通道；这些只在开发构建（`build.ps1` 不带 `-Release`）中存在。
 
 ### 已知限制
+- **原版 GameLogic.Update 空引用防御**：若其他 MOD 的读档/退出流程在玩家尚未创建时调用它（红色 NullReferenceException ... GameLogic.Update），该帧会被跳过而不再弹错；正常帧行为不变。
 
 - **配方/物品/科技 ID 必须 < 12000**：`IconSet` 索引数组定长 12000；超出会在开新档时崩。
 - **装配器存档 `recipeId` 为 `short`**：ID 需 ≤ 32767。
@@ -127,3 +129,4 @@ Outputs: `bin/ReleasePkg/DSP-RecipeSlots.dll`, `dist/DSP_RecipeSlots-<version>.z
 
 - BepInEx / HarmonyX
 - No other hard dependencies
+
